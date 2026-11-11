@@ -251,7 +251,7 @@
     }
     
     .sn-modal-cont .sn-modal {
-    	height: 60vh;
+    	max-height: 60vh;
     	width: 50vw;
     	backdrop-filter: blur(8px);
     	background: linear-gradient(to top right, rgba(255,255,255,0), rgba(255,255,255,0.1));
@@ -259,7 +259,7 @@
     	border: solid 1px rgba(255,255,255,0.4);
     	border-radius:50px;
     	overflow: hidden;
-    	padding: 25px 35px 0 35px;
+    	padding: 25px 35px;
     	transition: transform .3s ease;
     	max-width: 500px;
     	display:flex;
@@ -342,6 +342,7 @@
     td {border: 3px solid rgba(255,255,255,0.2);padding:5px;}
     .sn-modal-scroll {
     	overflow-y: auto;
+		overflow-x:hidden;
     	margin: 0 -10px;
     	padding: 10px 10px;
     	min-height: 82%;
@@ -428,6 +429,14 @@
 	.statusOverlay--showing{
 		opacity:1 !important;
 	}
+	.flex-stretch {
+		display:flex;
+		align-items:stretch;
+		gap:10px;
+	}
+	.flex-stretch * {
+		width:100%;
+	}
   </style>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
@@ -435,7 +444,7 @@
 
 <body lang="en">
 <span id='statusOverlay'></span>
-  <div id='sn-main' style='grid-template-rows: 1fr;font-size:12px'>
+  <div id='sn-main' style='grid-template-rows: 1fr;'>
     <div class='sn-row-cont'></div>
   </div>
   <div id='sn-over'>
@@ -461,7 +470,7 @@
   				<button class='sn-header-btn' id='sn-help-btn'>Help</button>
   			</div>
   			<div class='sn-header-version'>
-  				v0.1.6 Dev
+  				v0.1.7 Dev
   			</div>
   		</div>
   	</div>
@@ -473,6 +482,7 @@
   			<div class='sn-modal-title'>
   				Preferences
   			</div> 
+			<!-- Should probably revamp this to a better form system -->
   			<hr class='sn-modal-div'/>
   			<div class='sn-modal-scroll'>
   				<div class='sn-inpinp' title='File name'>
@@ -490,6 +500,30 @@
   							<button class='button sn-icobtn'>-</button>
   						</div>
   					</div>
+  				</div>
+  				<div class='sn-slideinp'>
+  					<label class='sn-inp-maincont' title="Automatically sync when there's a new version">
+  						<input type='checkbox' class='sn-inp-main sn-form-autosync'></input>
+  						<span class='sn-inp-caption'>Auto-sync</span>
+  					</label>
+  				</div>
+  				<div class='sn-slideinp'>
+  					<label class='sn-inp-maincont' title="Automatically save to localStorage">
+  						<input type='checkbox' class='sn-inp-main sn-form-saveToLocal'></input>
+  						<span class='sn-inp-caption'>Save to local</span>
+  					</label>
+  				</div>
+  				<div class='sn-slideinp'>
+  					<label class='sn-inp-maincont' title="Upload client stuff to the server">
+  						<input type='checkbox' class='sn-inp-main sn-form-syncClient'></input>
+  						<span class='sn-inp-caption'>Server Upload</span>
+  					</label>
+  				</div>
+  				<div class='sn-slideinp'>
+  					<label class='sn-inp-maincont' title="Download data from the server">
+  						<input type='checkbox' class='sn-inp-main sn-form-syncServer'></input>
+  						<span class='sn-inp-caption'>Server Download</span>
+  					</label>
   				</div>
   				<div class='sn-slideinp'>
   					<label class='sn-inp-maincont'>
@@ -525,8 +559,22 @@
   						</div>
   					</div>
   				</div>
+				<hr class='sn-modal-div'>
+				<button class='button sn-form-restore' title='Restores FlexNotes to before the last overwrite.'>Restore Backup</button>
   			</div>
   			<span class='sn-modal-foot'>© 2026 Frostbyte // AGPL-3.0</span>
+  		</div>
+  	</div>
+	<div id='sn-confirmModal' class='sn-modal-cont hidden'>
+  		<div class='sn-modal'>
+			<button class='button sn-close sn-icobtn sn-modal-close' id='sn-confirmModal__close'>×</button>
+  			<div class='sn-modal-title' id='sn-confirmModal__title'>
+				Null
+  			</div> 
+			<div class='flex-stretch'>
+			<button class='button sn-form-restore' id='sn-confirmModal__no'>No</button>
+			<button class='button sn-form-restore' id='sn-confirmModal__yes'>Yes</button>
+			</div>
   		</div>
   	</div>
   	<div id='sn-helpmodal' class='sn-modal-cont hidden'>
@@ -555,6 +603,16 @@
               			<td>Ctrl+?</td>
               			<td>Global</td>
               			<td>Open help</td>
+            			</tr>
+            			<tr>
+              			<td>Ctrl+.</td>
+              			<td>Global</td>
+              			<td>Increase Font Size</td>
+            			</tr>
+            			<tr>
+              			<td>Ctrl+,</td>
+              			<td>Global</td>
+              			<td>Decrease Font Size</td>
             			</tr>
             			<tr>
               			<td>Ctrl+S</td>
@@ -623,6 +681,7 @@
   	TBD:
   	Implement CryoCrypt and fsort for Rust wasm
   	*/
+	
   	const numbInputs = document.getElementsByClassName('sn-numinp');
   	for(let i=0;i<numbInputs.length;i++){
   		const inp = numbInputs[i].getElementsByClassName('sn-inp-main')[0];
@@ -653,7 +712,6 @@
   	const over = document.getElementById('sn-over');
   	const prefModal = document.getElementById('sn-prefmodal');
   	const helpModal = document.getElementById('sn-helpmodal');
-  	const prefFile = prefModal.getElementsByClassName('sn-form-file')[0];
   	const prefTabSave = prefModal.getElementsByClassName('sn-form-tabsave')[0];
   	let rowLengths = [parseFloat(cont.style.gridTemplateRows.split(' ')[0])];
   	const baseParams = {alphabet:'base64url',omitPadding:true};
@@ -661,13 +719,137 @@
   	let dividers = [];
   	let asInterval = null;
   	let winSave = null;
+	let contentBackup = null;
   	let C_prevState = {
   		val: [['']],
   		cont: cont.style.gridTemplateRows,
   	};
-  	function bindToTabSave(a){
-  		a.addEventListener('change',updateTabSave);
-  	}
+	
+  	const confirmModal = document.getElementById('sn-confirmModal');
+  	const confirmModalTitle = document.getElementById('sn-confirmModal__title');
+  	const confirmModalYes = document.getElementById('sn-confirmModal__yes');
+  	const confirmModalNo = document.getElementById('sn-confirmModal__no');
+  	const confirmModalClose = document.getElementById('sn-confirmModal__close');
+	let confirmPromise = null;
+	let confirmLock = false;
+	async function showConfirm(query){
+		if(confirmLock){
+			throw new Error("Confirm has been locked.");
+		}
+		let confirmIterations = 0;
+		while(confirmPromise){
+			if(confirmIterations > 10){
+				confirmLock = true;
+				throw new Error("Confirm iterations exceeded. There may be an infinite loop in the code.");
+			}
+			await confirmPromise;
+			confirmIterations++;
+		}
+		confirmModalTitle.textContent = query;
+		confirmModal.classList.remove('hidden');
+		confirmModalYes.focus();
+		confirmPromise = new Promise(resolve=>{
+			const handleYes = ()=>{
+				confirmModalYes.removeEventListener('click',handleYes);
+				confirmModalNo.removeEventListener('click',handleNo);
+				confirmModal.classList.add('hidden');
+				confirmPromise = null;
+				resolve(true);
+			};
+			const handleNo = ()=>{
+				confirmModalYes.removeEventListener('click',handleYes);
+				confirmModalNo.removeEventListener('click',handleNo);
+				confirmModal.classList.add('hidden');
+				confirmPromise = null;
+				resolve(false);
+			};
+			confirmModalYes.addEventListener('click',handleYes);
+			confirmModalNo.addEventListener('click',handleNo);
+			confirmModalClose.addEventListener('click',handleNo);
+		});
+		return confirmPromise;
+	}
+	
+	//(async ()=>{showStatus(await showConfirm("tes"))})()
+	
+	const isLocalStorageSupported = 'localStorage' in window;
+	
+  	const prefRestore = prefModal.getElementsByClassName('sn-form-restore')[0];
+	prefRestore.addEventListener('click',()=>{
+		if(contentBackup){
+		importData(contentBackup);
+		showStatus("Backup restored.");
+		}else{
+		showStatus("No backup stored.");
+		}
+	});
+	
+	let flexAutoSyncEnabled = false;
+  	const prefAutoSync = prefModal.getElementsByClassName('sn-form-autosync')[0];
+	function setAutoSync(value){
+		flexAutoSyncEnabled = value;
+  		prefAutoSync.checked = flexAutoSyncEnabled;
+		isLocalStorageSupported && localStorage.setItem('fn.pref.autoSync',+flexAutoSyncEnabled);
+	}
+	prefAutoSync.addEventListener('change',()=>setAutoSync(prefAutoSync.checked));
+	
+	let flexSyncServer = true;
+  	const prefSyncServer = prefModal.getElementsByClassName('sn-form-syncServer')[0];
+	function setSyncServer(value){
+		flexSyncServer = value;
+  		prefSyncServer.checked = flexSyncServer;
+		isLocalStorageSupported && localStorage.setItem('fn.pref.syncServer',+flexSyncServer);
+	}
+	prefSyncServer.addEventListener('change',()=>setSyncServer(prefSyncServer.checked));
+	
+	let flexSyncClient = true;
+  	const prefSyncClient = prefModal.getElementsByClassName('sn-form-syncClient')[0];
+	function setSyncClient(value){
+		flexSyncClient = value;
+  		prefSyncClient.checked = flexSyncClient;
+		isLocalStorageSupported && localStorage.setItem('fn.pref.syncClient',+flexSyncClient);
+	}
+	prefSyncClient.addEventListener('change',()=>setSyncClient(prefSyncClient.checked));
+	
+	let flexSaveToLocal = false;
+  	const prefSaveToLocal = prefModal.getElementsByClassName('sn-form-saveToLocal')[0];
+	function setSaveToLocal(value){
+		flexSaveToLocal = value;
+  		prefSaveToLocal.checked = flexSaveToLocal;
+		if(isLocalStorageSupported){
+			localStorage.setItem('fn.pref.saveToLocal',+flexSaveToLocal);
+			if(!flexSaveToLocal){
+				localStorage.removeItem('fn.content');
+			}
+		}
+	}
+	prefSaveToLocal.addEventListener('change',()=>setSaveToLocal(prefSaveToLocal.checked));
+	
+	const prefFont = prefModal.getElementsByClassName('sn-form-font')[0];
+	let flexFontSize = 12;
+	function setFontSize(size){
+		flexFontSize = Math.max(1,size) || 12;
+  		prefFont.value = flexFontSize;
+  		cont.style.fontSize = flexFontSize.toString() + 'px';
+		isLocalStorageSupported && localStorage.setItem('fn.pref.fontSize',flexFontSize);
+		return cont.style.fontSize;
+	}
+	
+  	prefFont.addEventListener('change',()=>{
+  		setFontSize(parseInt(prefFont.value));
+  	});
+	
+	let flexFileName = "flexnote-export";
+  	const prefFile = prefModal.getElementsByClassName('sn-form-file')[0];
+	function setFileName(value){
+		flexFileName = value;
+  		prefFile.value = value;
+		isLocalStorageSupported && localStorage.setItem('fn.pref.fileName',flexFileName);
+	}
+  	prefFile.addEventListener('change',()=>{
+  		setFileName(prefFile.value);
+  	});
+	
   	class SNRow {
   		constructor(elm){
   			this.add = this.add.bind(this);
@@ -680,7 +862,6 @@
   			const initArea = document.createElement('textarea');
   			initArea.classList.add('sn-area');
   			this.row.appendChild(initArea);
-  			bindToTabSave(initArea);
   			this.areas = [initArea];
   			const addCont = document.createElement('div');
   			addCont.classList.add('sn-row-add');
@@ -700,15 +881,14 @@
   			const newArea = document.createElement('textarea');
   			newArea.classList.add('sn-area');
   			this.row.appendChild(newArea);
-  			bindToTabSave(newArea);
   			this.areas.push(newArea);
   			this.row.style.gridTemplateColumns = '1fr';
   			for(let i=1;i<this.areas.length;i++){
   				this.row.style.gridTemplateColumns += ' 1fr';
   			}
   		}
-  		rem(){
-  			if(this.areas.length == 1 || !(confirm('Are you sure you want to delete the textarea?'))){return;}
+  		async rem(){
+  			if(this.areas.length == 1 || !(await showConfirm('Are you sure you want to delete the textarea?'))){return;}
   			const remArea = this.areas.pop();
   			remArea.remove();
   			this.row.style.gridTemplateColumns = '1fr';
@@ -741,17 +921,6 @@
   		newStyle += divy.toString()+'fr';
   		cont.style.gridTemplateRows = newStyle;
   		
-  		//updRowHeight();
-  		/*
-  		let down = 0;
-  		for(let i=0;i<rowFrsNew.length;i++){
-  			const test = document.createElement('div');
-  			test.style = 'height:50px;width:50px;background:green;position:absolute;';
-  			down += (rowFrsNew[i]*window.innerHeight);
-  			test.style.top = (down).toString()+'px';
-  			document.body.appendChild(test);
-  		}
-  		*/
   		let downDist = 0;
   		for(let i=0;i<dividers.length;i++){
   			downDist += rowLengths[i];
@@ -762,8 +931,8 @@
   		addDiv(downDist,divInd);
   	}
   	
-  	function remCol(){
-  		if(rows.length == 1 || !confirm('Are you sure you want to delete the last column?')){return;}
+  	async function remCol(){
+  		if(rows.length == 1 || !(await showConfirm('Are you sure you want to delete the last row?'))){return;}
   			
   		(rows.pop()).cont.remove();
   		(dividers.pop()).remove();
@@ -811,8 +980,8 @@
 		});
   		document.body.addEventListener('mouseup',()=>{
 			divDwn=false;
-			if(sizeChanged){updateTabSave()}
-			sizeChanged=true;
+			if(sizeChanged){updateSaves()}
+			sizeChanged=false;
 		});
   		document.body.addEventListener('mousemove',e=>{
   			if(divDwn){
@@ -837,6 +1006,7 @@
   	}
 	
 	function importData(file,isFile=false){
+		contentBackup = exportData();
 		const fileView = new DataView(file.buffer);
 		let ind=0;
 		if(isFile){
@@ -950,37 +1120,17 @@
 		return file;
 	}
 	
-	/*
-	showStatus('📡',false);
-	const socket = io("https://example.com");
-	socket.once('client_retreival',data=>{
-		showStatus('📥');
-		importData(new Uint8Array(data));
-	});
-	socket.on('client_sync',data=>{
-		showStatus('🔄');
-		importData(new Uint8Array(data));
-	});
-	socket.on('connect',()=>{
-		showStatus('🔗');
-	});
-	socket.on('disconnect',()=>{
-		showStatus('⛓️‍💥',false);
-		checkForChange();
-	});
-	*/
-	
   	function saveConfig(){
   		commitChange();
   		const dwnAnch = document.createElement('a');
-  		dwnAnch.download = (prefFile.value||'export')+'.fn';
+  		dwnAnch.download = flexFileName+'.fn';
   		dwnAnch.href = URL.createObjectURL(new Blob([exportData(true)]));
   		dwnAnch.click();
   		URL.revokeObjectURL(dwnAnch.href);
   	}
   	
-  	function loadConfig(){
-  		if(!confirm('Are you sure you want to load a file? (Your work will be replaced!)')){return;}
+  	async function loadConfig(){
+  		if(!(await showConfirm('Are you sure you want to load a file? (Your work will be replaced!)'))){return;}
   		const fileInp = document.createElement('input');
   		fileInp.type = 'file';
   		fileInp.accept = '.fn';
@@ -990,7 +1140,7 @@
 				showStatus('Please upload some files');
 				return;
 			}
-			prefFile.value = fileInp.files[0].name.substr(0,fileInp.files[0].name.length-3);
+			setFileName(fileInp.files[0].name.substr(0,fileInp.files[0].name.length-3));
 			const fR = new FileReader();
 			fR.onload = ()=>{
 				importData(new Uint8Array(fR.result),true);
@@ -1032,17 +1182,25 @@
   			}
   		}
   	}
+	
+	let updateSaveTimeout = null;
+	cont.addEventListener('input',()=>{
+		clearTimeout(updateSaveTimeout);
+		lastInput = Date.now();
+		updateSaveTimeout = setTimeout(updateSaves,3000);
+	});
   	
-  	function updateTabSave(){
+  	function updateSaves(){
 		const newData = exportData();
   		if(winSave){
 			if(winSave.closed) winSave=open();
 			let out = '';
-			const fileName = encodeURIComponent(prefFile.value || 'export');
+			const fileName = encodeURIComponent(flexFileName);
 			out+=fileName.length.toString(16).padStart(2,'0')+fileName+newData.toBase64(baseParams);
 			winSave.location.href = 'http://fn/'+out;
 		}
-		//socket.emit('server_sync',newData.buffer);
+		flexSaveToLocal && localStorage.setItem('fn.content',JSON.stringify({data:newData.toBase64(), version:lastInput}));
+		//flexSyncClient && socket.emit('server_sync',{version:lastInput,data:newData.buffer});
   	}
   	
   	function loadTabSave(){
@@ -1057,18 +1215,11 @@
   			}
   			if(fullUrlUrl.hostname!='fn'){showStatus('This is not a tabsave URL!');return}
   			const fileNameLength = parseInt(fullUrlUrl.pathname.substr(1,2),16);
-    		prefFile.value=decodeURIComponent(fullUrlUrl.pathname.substr(3,fileNameLength));
+    		setFileName(decodeURIComponent(fullUrlUrl.pathname.substr(3,fileNameLength)));
   			//const fileLength = (new Uint32Array(Uint8Array.fromBase64(fullUrlUrl.pathname.substr(3+fileNameLength,6)).buffer))[0];
   			importData(Uint8Array.fromBase64(fullUrlUrl.pathname.substr(3+fileNameLength),baseParams));
   		}
   	}
-  	
-  	const prefFont = prefModal.getElementsByClassName('sn-form-font')[0];
-  	prefFont.addEventListener('change',()=>{
-  		const cVal = Math.max(1,parseInt(prefFont.value)) || 1;
-  		prefFont.value = cVal;
-  		cont.style.fontSize = cVal.toString() + 'px';
-  	})
   	const prefAutoMin = prefModal.getElementsByClassName('sn-form-min')[0];
   	prefAutoMin.addEventListener('change',()=>{
   		if(prefAutoSave.checked){
@@ -1088,7 +1239,7 @@
 	function runTabSave(){
 		if(prefTabSave.checked){
   			winSave = open();
-  			updateTabSave();
+  			updateSaves();
   		}else if(winSave){
   			!winSave.closed && winSave.close()
   			winSave = null;
@@ -1115,7 +1266,11 @@
   	for(let i=0;i<i_rows.length;i++){
   		rows.push(new SNRow(i_rows[i]))
   	}
-  	//updRowHeight();
+	document.addEventListener('mousemove',e=>{
+		if(e.ctrlKey && e.altKey){
+			showStatus("Size: "+setFontSize(flexFontSize-e.movementY/10));
+		}
+	});
   	document.addEventListener('keydown',e=>{
   		if(e.ctrlKey){
 			if(e.shiftKey){
@@ -1154,20 +1309,114 @@
   				e.preventDefault();
   				helpModal.classList.toggle('hidden');
   				break;
+  				case '.':
+  				e.preventDefault();
+				showStatus("Size: "+setFontSize(flexFontSize+1));
+  				break;
+  				case ',':
+  				e.preventDefault();
+				showStatus("Size: "+setFontSize(flexFontSize-1));
+  				break;
   			}
   		}else{
   			switch(e.key){
   				case 'Escape':
   				for(let i=0;i<snModals.length;i++){
-  					snModals[i].classList.add('hidden');
+					snModals[i].getElementsByClassName('sn-modal-close')[0].click();
   				}
   				break;
   			}
   		}
   	});
+	let lastInput = 0;
+	
+	if(isLocalStorageSupported){
+		const savedFontSize = localStorage.getItem('fn.pref.fontSize');
+		if(savedFontSize){
+			setFontSize(parseInt(savedFontSize));
+		}else{
+			setFontSize(flexFontSize);
+		}
+		const savedAutoSync = localStorage.getItem('fn.pref.autoSync');
+		if(savedAutoSync){
+			setAutoSync(parseInt(savedAutoSync) == 1 ? true : false);
+		}else{
+			setAutoSync(flexAutoSyncEnabled);
+		}
+		const savedSaveToLocal = localStorage.getItem('fn.pref.saveToLocal');
+		if(savedSaveToLocal){
+			setSaveToLocal(parseInt(savedSaveToLocal) == 1 ? true : false);
+		}else{
+			setSaveToLocal(flexSaveToLocal);
+		}
+		const savedSyncServer = localStorage.getItem('fn.pref.syncServer');
+		if(savedSyncServer){
+			setSyncServer(parseInt(savedSyncServer) == 1 ? true : false);
+		}else{
+			setSyncServer(flexSyncServer);
+		}
+		const savedSyncClient = localStorage.getItem('fn.pref.syncClient');
+		if(savedSyncClient){
+			setSyncClient(parseInt(savedSyncClient) == 1 ? true : false);
+		}else{
+			setSyncClient(flexSyncClient);
+		}
+		const savedFileName = localStorage.getItem('fn.pref.fileName');
+		if(savedFileName){
+			setFileName(savedFileName);
+		}else{
+			setFileName(flexFileName);
+		}
+		showStatus('L⚙️');
+		
+		if(flexSaveToLocal){
+			const savedContent = localStorage.getItem('fn.content');
+			if(savedContent){
+				const toLocalResult = JSON.parse(savedContent);
+				
+				if(toLocalResult.version >= lastInput){
+					lastInput = toLocalResult.version;
+					importData(Uint8Array.fromBase64(toLocalResult.data));		
+					showStatus('L📥');
+				}			
+			}
+		}
+	}else{
+		setFontSize(flexFontSize);
+		setAutoSync(flexAutoSyncEnabled);
+		setSaveToLocal(flexSaveToLocal);
+		setSyncServer(flexSyncServer);
+		setSyncClient(flexSyncClient);
+		setFileName(flexFileName);
+	}
+	
+	/*
+	showStatus('📡',false);
+	const socket = io("https://example.com");
+	socket.once('client_retreival',data=>{
+		if(flexSyncServer){
+			showStatus('📥');
+			importData(new Uint8Array(data));
+		}
+	});
+	socket.on('client_sync',async data=>{
+		//TODO: This is def gonna be buggy when someone's typing but whatever...
+		if(flexSyncServer && data.version > lastInput && (flexAutoSyncEnabled || await showConfirm('There is a new version available, overwrite?'))){
+			showStatus('🔄');
+			importData(new Uint8Array(data.data));
+		}
+	});
+	socket.on('connect',()=>{
+		showStatus('🔗');
+	});
+	socket.on('disconnect',()=>{
+		showStatus('⛓️‍💥',false);
+		checkForChange();
+	});
+	*/
   	onbeforeunload=()=>{
 		if(rows.length>1 || rows[0].areas.length>1 || rows[0].areas[0].value.length>0){
-			updateTabSave();
+			updateSaves();
 			return 0;
 		}
 	}
